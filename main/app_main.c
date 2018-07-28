@@ -15,7 +15,6 @@
 
 #define TITLE "Wally"
 
-static uint32_t entropy[10];
 static int current_word = 0;
 
 int get_keydown() {
@@ -31,7 +30,14 @@ uint16_t centered_text_offset(char *text, uint8_t font_width) {
     return (KC_SCREEN_W / 2) - ((text_length / 2) * font_width);
 }
 
-void draw_title_screen() {
+static void reset_entropy(uint32_t* entropy, size_t len)
+{
+    for(int i = 0; i < 10; ++i) {
+        entropy[i] = esp_random();
+    }
+}
+
+void draw_title_screen(uint32_t* entropy) {
     uint8_t font_width = 6;
     uint8_t font_height = 8;
 
@@ -69,7 +75,11 @@ void draw_title_screen() {
 }
 
 void do_title_screen() {
-    draw_title_screen();
+    size_t entlen = 10;
+    uint32_t entropy[entlen];
+    reset_entropy(entropy, entlen);
+
+    draw_title_screen(entropy);
     while (1) {
         int btn = get_keydown();
         if (btn & KC_BTN_POWER) {
@@ -78,29 +88,22 @@ void do_title_screen() {
         if(btn & KC_BTN_LEFT) {
             if (current_word > 0) {
                 --current_word;
-                draw_title_screen();
+                draw_title_screen(entropy);
             }
         }
         else if(btn & KC_BTN_RIGHT) {
             if (current_word < 23) {
                 ++current_word;
-                draw_title_screen();
+                draw_title_screen(entropy);
             }
         }
     }
 }
 
-void reset_entropy()
-{
-    for(int i = 0; i < 10; ++i) {
-        entropy[i] = esp_random();
-    }
-}
 
 void app_main() {
     kchal_init();
     kcugui_init();
-    reset_entropy();
     wally_init(0);
     while (1) {
         do_title_screen();
