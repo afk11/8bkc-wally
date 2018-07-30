@@ -15,8 +15,6 @@
 
 #define TITLE "Wally"
 
-static int current_word = 0;
-
 int get_keydown() {
     static int old_buttons = 0xffff;
     int new_buttons = kchal_get_keys();
@@ -37,7 +35,7 @@ static void reset_entropy(uint32_t* entropy, size_t len)
     }
 }
 
-void draw_title_screen(uint32_t* entropy) {
+void draw_title_screen(uint32_t* entropy, int current_word) {
     uint8_t font_width = 6;
     uint8_t font_height = 8;
 
@@ -79,7 +77,8 @@ void do_title_screen() {
     uint32_t entropy[entlen];
     reset_entropy(entropy, entlen);
 
-    draw_title_screen(entropy);
+    int current_word = 0;
+    draw_title_screen(entropy, current_word);
     while (1) {
         int btn = get_keydown();
         if (btn & KC_BTN_POWER) {
@@ -88,13 +87,13 @@ void do_title_screen() {
         if(btn & KC_BTN_LEFT) {
             if (current_word > 0) {
                 --current_word;
-                draw_title_screen(entropy);
+                draw_title_screen(entropy, current_word);
             }
         }
         else if(btn & KC_BTN_RIGHT) {
             if (current_word < 23) {
                 ++current_word;
-                draw_title_screen(entropy);
+                draw_title_screen(entropy, current_word);
             }
         }
     }
