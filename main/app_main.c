@@ -72,6 +72,36 @@ void draw_title_screen(uint32_t* entropy, int current_word) {
     wally_free_string(original);
 }
 
+int do_confirm_screen() {
+    while (1) {
+        int btn = get_keydown();
+        if (btn & KC_BTN_POWER) {
+            kchal_exit_to_chooser();
+        }
+
+        if (btn & KC_BTN_A) {
+            return 1;
+        } else if (btn & KC_BTN_B) {
+            return 0;
+        }
+    }
+}
+
+void do_close_screen() {
+    uint8_t font_width = 6;
+    uint8_t font_height = 8;
+
+    kcugui_cls();
+    UG_PutString(0, 0, "Closing");
+    kcugui_flush();
+
+    while (1) {
+        int btn = get_keydown();
+        if (btn) {
+            kchal_exit_to_chooser();
+        }
+    }
+}
 void do_title_screen() {
     size_t entlen = 10;
     uint32_t entropy[entlen];
@@ -95,16 +125,25 @@ void do_title_screen() {
                 ++current_word;
                 draw_title_screen(entropy, current_word);
             }
+        } else if(btn & KC_BTN_A) {
+            // If user has finished recording the seed save
+            // our state. Otherwise resume display of the seed.
+            kcugui_cls();
+            UG_PutString(0, 0, "Have you saved your seed?");
+            kcugui_flush();
+            if (do_confirm_screen()) {
+                return;
+            }
+            draw_title_screen(entropy, current_word);
         }
     }
 }
-
 
 void app_main() {
     kchal_init();
     kcugui_init();
     wally_init(0);
-    while (1) {
-        do_title_screen();
-    }
+
+    do_title_screen();
+    do_close_screen();
 }
