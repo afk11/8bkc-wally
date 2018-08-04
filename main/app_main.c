@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
@@ -11,6 +12,7 @@
 #include "esp_system.h"
 
 #include <wally_core.h>
+#include <wally_crypto.h>
 #include <wally_bip39.h>
 
 #define TITLE "Wally"
@@ -40,7 +42,6 @@ void draw_title_screen(uint32_t* entropy, int current_word) {
     uint8_t font_height = 8;
 
     kcugui_cls();
-    UG_FontSelect(&FONT_6X8);
     UG_SetForecolor(C_LAWN_GREEN);
     UG_PutString(centered_text_offset(TITLE, font_width), 0, TITLE);
     UG_FontSetHSpace(0);
@@ -138,12 +139,44 @@ void do_title_screen() {
         }
     }
 }
+void print_and_confirm(char *msg) {
+    kcugui_cls();
+    UG_PutString(0, 0, msg);
+    kcugui_flush();
+    do_confirm_screen();
+}
 
 void app_main() {
     kchal_init();
     kcugui_init();
-    wally_init(0);
+    UG_FontSelect(&FONT_6X8);
+    if (WALLY_OK != wally_init(0)) {
+        print_and_confirm("failed to init wally");
+        do_close_screen();
+    }
+
+    print_and_confirm("gen ctx");
+    const unsigned char seed[EC_PRIVATE_KEY_LEN] = {
+            0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
+            0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
+            0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
+            0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55
+    };
+
+    unsigned char* pubKey = NULL;
+    pubKey = malloc(EC_PUBLIC_KEY_LEN);
+    if (!pubKey) {
+        print_and_confirm("failed to alloc for pub key");
+        wally_cleanup(0);
+        do_close_screen();
+    }
+    if (WALLY_OK != wally_ec_public_key_from_private_key(seed, EC_PRIVATE_KEY_LEN, pubKey, EC_PUBLIC_KEY_LEN)) {
+        print_and_confirm("failed to create pubkey");
+        wally_cleanup(0);
+        do_close_screen();
+    }
 
     do_title_screen();
+    wally_cleanup(0);
     do_close_screen();
 }
