@@ -155,7 +155,6 @@ void app_main() {
         do_close_screen();
     }
 
-    print_and_confirm("gen ctx");
     const unsigned char seed[EC_PRIVATE_KEY_LEN] = {
             0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
             0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
@@ -170,6 +169,7 @@ void app_main() {
         wally_cleanup(0);
         do_close_screen();
     }
+    print_and_confirm("gen ctx");
     if (WALLY_OK != wally_ec_public_key_from_private_key(seed, EC_PRIVATE_KEY_LEN, pubKey, EC_PUBLIC_KEY_LEN)) {
         print_and_confirm("failed to create pubkey");
         wally_cleanup(0);
