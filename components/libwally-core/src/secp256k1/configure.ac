@@ -195,7 +195,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[void myfunc() {__builtin_popcount(0);}]])],
 
 if test x"$use_ecmult_static_precomputation" != x"no"; then
   save_cross_compiling=$cross_compiling
-  cross_compiling=no
+  cross_compiling=yes
   TEMP_CC="$CC"
   CC="$CC_FOR_BUILD"
   AC_MSG_CHECKING([native compiler: ${CC_FOR_BUILD}])
