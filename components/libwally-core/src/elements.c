@@ -1,4 +1,5 @@
 #include "internal.h"
+#include <include/wally_address.h>
 #include <include/wally_elements.h>
 #include <include/wally_crypto.h>
 #include "secp256k1/include/secp256k1_generator.h"
@@ -7,6 +8,8 @@
 #include "secp256k1/include/secp256k1_ecdh.h"
 #include "ccan/ccan/crypto/sha256/sha256.h"
 #include <stdbool.h>
+
+#ifdef BUILD_ELEMENTS
 
 static int get_generator(const secp256k1_context *ctx,
                          const unsigned char *generator, size_t generator_len,
@@ -158,7 +161,7 @@ int wally_asset_rangeproof(uint64_t value,
         goto cleanup;
 
     /* Create the rangeproof nonce */
-    if (!secp256k1_ecdh(ctx, nonce, &pub, priv_key)) {
+    if (!secp256k1_ecdh(ctx, nonce, &pub, priv_key, NULL, NULL)) {
         /* FIXME: Only return WALLY_ERROR if this can fail while priv_key
          * passes wally_ec_private_key_verify(), otherwise return WALLY_EINVAL
          */
@@ -229,7 +232,7 @@ int wally_asset_unblind(const unsigned char *pub_key, size_t pub_key_len,
         goto cleanup;
 
     /* Create the rangeproof nonce */
-    if (!secp256k1_ecdh(ctx, nonce, &pub, priv_key))
+    if (!secp256k1_ecdh(ctx, nonce, &pub, priv_key, NULL, NULL))
         goto cleanup;
     wally_sha256(nonce, sizeof(nonce), nonce_sha.u.u8, sizeof(nonce_sha));
 
@@ -305,10 +308,10 @@ int wally_asset_surjectionproof(const unsigned char *output_asset, size_t output
 
     /* Build the array of input generator pointers required by secp */
     /* FIXME: This is horribly painful. Since parsed representations dont
-     * currently differ from serialised, if this function took a pointer
+     * currently differ from serialized, if this function took a pointer
      * to an array, all this is actually just a very convoluted cast.
      */
-    if (!(generators = wally_malloc(num_inputs * ASSET_GENERATOR_LEN))) {
+    if (!(generators = wally_malloc(num_inputs * sizeof(secp256k1_generator)))) {
         ret = WALLY_ENOMEM;
         goto cleanup;
     }
@@ -342,7 +345,106 @@ int wally_asset_surjectionproof(const unsigned char *output_asset, size_t output
 cleanup:
     wally_clear_2(&gen, sizeof(gen), &proof, sizeof(proof));
     if (generators)
-        wally_clear(generators, generator_len);
+        wally_clear(generators, num_inputs * sizeof(secp256k1_generator));
     wally_free(generators);
     return ret;
 }
+
+int wally_confidential_addr_to_addr(
+    const char *address,
+    uint32_t prefix,
+    char **output)
+{
+    unsigned char buf[2 + EC_PUBLIC_KEY_LEN + HASH160_LEN + BASE58_CHECKSUM_LEN];
+    unsigned char *addr_bytes_p = &buf[EC_PUBLIC_KEY_LEN + 1];
+    size_t written;
+    int ret;
+
+    if (output)
+        *output = NULL;
+
+    if (!address || !output)
+        return WALLY_EINVAL;
+
+    ret = wally_base58_to_bytes(address, BASE58_FLAG_CHECKSUM, buf, sizeof(buf), &written);
+    if (ret == WALLY_OK) {
+        if (written != sizeof(buf) - BASE58_CHECKSUM_LEN || buf[0] != prefix)
+            ret = WALLY_EINVAL;
+        else {
+            /* Move the version in front of the address hash and encode it */
+            addr_bytes_p[0] = buf[1];
+            ret = wally_base58_from_bytes(addr_bytes_p, HASH160_LEN + 1,
+                                          BASE58_FLAG_CHECKSUM, output);
+        }
+    }
+
+    wally_clear(buf, sizeof(buf));
+    return ret;
+}
+
+int wally_confidential_addr_to_ec_public_key(
+    const char *address,
+    uint32_t prefix,
+    unsigned char *bytes_out,
+    size_t len)
+{
+    unsigned char buf[2 + EC_PUBLIC_KEY_LEN + HASH160_LEN + BASE58_CHECKSUM_LEN];
+    size_t written;
+    int ret;
+
+    if (!address || !bytes_out || len != EC_PUBLIC_KEY_LEN)
+        return WALLY_EINVAL;
+
+    ret = wally_base58_to_bytes(address, BASE58_FLAG_CHECKSUM, buf, sizeof(buf), &written);
+    if (ret == WALLY_OK) {
+        if (written != sizeof(buf) - BASE58_CHECKSUM_LEN || buf[0] != prefix)
+            ret = WALLY_EINVAL;
+        else {
+            /* Return the embedded public key */
+            memcpy(bytes_out, buf + 2, EC_PUBLIC_KEY_LEN);
+        }
+    }
+
+    wally_clear(buf, sizeof(buf));
+    return ret;
+}
+
+int wally_confidential_addr_from_addr(
+    const char *address,
+    uint32_t prefix,
+    const unsigned char *pub_key,
+    size_t pub_key_len,
+    char **output)
+{
+    unsigned char buf[2 + EC_PUBLIC_KEY_LEN + HASH160_LEN + BASE58_CHECKSUM_LEN];
+    unsigned char *addr_bytes_p = &buf[EC_PUBLIC_KEY_LEN + 1];
+    size_t written;
+    int ret;
+
+    if (output)
+        *output = NULL;
+
+    if (!address || (prefix & 0xffffff00) || !pub_key || pub_key_len != EC_PUBLIC_KEY_LEN || !output)
+        return WALLY_EINVAL;
+
+    /* Decode the passed address */
+    ret = wally_base58_to_bytes(address, BASE58_FLAG_CHECKSUM,
+                                addr_bytes_p, 1 + HASH160_LEN + EC_PUBLIC_KEY_LEN, &written);
+    if (ret == WALLY_OK) {
+        if (written != HASH160_LEN + 1)
+            ret = WALLY_EINVAL;
+        else {
+            /* Copy the prefix/version/pubkey and encode the address to return */
+            buf[0] = prefix & 0xff;
+            buf[1] = addr_bytes_p[0];
+            memcpy(buf + 2, pub_key, pub_key_len);
+            ret = wally_base58_from_bytes(buf, sizeof(buf) - BASE58_CHECKSUM_LEN,
+                                          BASE58_FLAG_CHECKSUM, output);
+        }
+    }
+
+    wally_clear(buf, sizeof(buf));
+    return ret;
+}
+
+#endif /* BUILD_ELEMENTS */

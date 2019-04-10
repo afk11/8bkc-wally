@@ -34,7 +34,7 @@ static int check_result(JNIEnv *jenv, int result)
 }
 
 static int int_cast(JNIEnv *jenv, size_t value) {
-    if (value > INT_MAX)
+    if (value > UINT_MAX)
         SWIG_JavaThrowException(jenv, SWIG_JavaIndexOutOfBoundsException, "Invalid length");
     return (int)value;
 }
@@ -169,11 +169,12 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
     $1 = &temp;
 }
 %typemap(argout,noblock=1) (char **output) {
-    if ($1) {
-        $result = (*jenv)->NewStringUTF(jenv, *$1);
+    $result = NULL;
+    if ($1 && *$1) {
+        if (!(*jenv)->ExceptionOccurred(jenv))
+            $result = (*jenv)->NewStringUTF(jenv, *$1);
         wally_free_string(*$1);
-    } else
-        $result = NULL;
+    }
 }
 
 /* uint32_t input arguments are taken as longs and cast with range checking */
@@ -181,7 +182,7 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
     $1 = uint32_cast(jenv, $input);
 }
 
-/* uint62_t input arguments are taken as longs and cast unchecked. This means
+/* uint64_t input arguments are taken as longs and cast unchecked. This means
  * callers need to take care with treating negative values correctly */
 %typemap(in) uint64_t {
     $1 = (uint64_t)($input);
@@ -195,8 +196,13 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %typemap(javain)  (INTTYPE *STRING, size_t LENGTH) "$javainput"
 %typemap(freearg) (INTTYPE *STRING, size_t LENGTH) ""
 %typemap(in)      (INTTYPE *STRING, size_t LENGTH) {
-    $1 = $input ? (INTTYPE *) JCALL2(GETFN, jenv, $input, 0) : 0;
-    $2 = $input ? (size_t) JCALL1(GetArrayLength, jenv, $input) : 0;
+    if (!(*jenv)->ExceptionOccurred(jenv)) {
+        $1 = $input ? (INTTYPE *) JCALL2(GETFN, jenv, $input, 0) : 0;
+        $2 = $input ? (size_t) JCALL1(GetArrayLength, jenv, $input) : 0;
+    } else {
+        $1 = 0;
+        $2 = 0;
+    }
 }
 %typemap(argout)  (INTTYPE *STRING, size_t LENGTH) {
   if ($input) JCALL3(RELEASEFN, jenv, $input, (j##JTYPE *)$1, 0);
@@ -212,24 +218,34 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *bytes, size_t bytes_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *chain_code, size_t chain_code_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *commitment, size_t commitment_len) };
+%apply(char *STRING, size_t LENGTH) { (const unsigned char *contract_hash, size_t contract_hash_len) };
+%apply(char *STRING, size_t LENGTH) { (const unsigned char *entropy, size_t entropy_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *extra, size_t extra_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *generator, size_t generator_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *hash160, size_t hash160_len) };
+%apply(char *STRING, size_t LENGTH) { (const unsigned char *inflation_keys, size_t inflation_keys_len) };
+%apply(char *STRING, size_t LENGTH) { (const unsigned char *inflation_keys_rangeproof, size_t inflation_keys_rangeproof_len) };
+%apply(char *STRING, size_t LENGTH) { (const unsigned char *issuance_amount, size_t issuance_amount_len) };
+%apply(char *STRING, size_t LENGTH) { (const unsigned char *issuance_amount_rangeproof, size_t issuance_amount_rangeproof_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *iv, size_t iv_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *key, size_t key_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *output_abf, size_t output_abf_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *output_asset, size_t output_asset_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *output_generator, size_t output_generator_len) };
+%apply(char *STRING, size_t LENGTH) { (const unsigned char *nonce, size_t nonce_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *pass, size_t pass_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *parent160, size_t parent160_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *priv_key, size_t priv_key_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *proof, size_t proof_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *pub_key, size_t pub_key_len) };
+%apply(char *STRING, size_t LENGTH) { (const unsigned char *rangeproof, size_t rangeproof_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *salt, size_t salt_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *script, size_t script_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *sig, size_t sig_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *sighash, size_t sighash_len) };
-%apply(char *STRING, size_t LENGTH) { (const unsigned char *txhash, size_t txhash) };
+%apply(char *STRING, size_t LENGTH) { (const unsigned char *surjectionproof, size_t surjectionproof_len) };
+%apply(char *STRING, size_t LENGTH) { (const unsigned char *txhash, size_t txhash_len) };
+%apply(char *STRING, size_t LENGTH) { (const unsigned char *value, size_t value_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *vbf, size_t vbf_len) };
 %apply(char *STRING, size_t LENGTH) { (const unsigned char *witness, size_t witness_len) };
 
@@ -273,6 +289,14 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 }
 %typemap(jtype) const struct NAME * "Object"
 %typemap(jni) const struct NAME * "jobject"
+%typemap (in) struct NAME * {
+    $1 = (struct NAME *)get_obj_or_throw(jenv, $input, ID, "NAME");
+    if (!$1)
+        return $null;
+}
+%typemap(jtype) struct NAME * "Object"
+%typemap(jni) struct NAME * "jobject"
+
 %enddef
 
 /* Change a functions return type to match its output type mapping */
@@ -329,6 +353,8 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 
 /* Our wrapped functions return types */
 %returns_void__(bip32_key_free);
+%returns_struct(bip32_key_from_base58_alloc, ext_key);
+%rename("bip32_key_from_base58") bip32_key_from_base58_alloc;
 %returns_struct(bip32_key_from_parent_alloc, ext_key);
 %rename("bip32_key_from_parent") bip32_key_from_parent_alloc;
 %returns_struct(bip32_key_from_parent_path_alloc, ext_key);
@@ -346,12 +372,15 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %returns_struct(bip32_key_init_alloc, ext_key);
 %rename("bip32_key_init") bip32_key_init_alloc;
 %returns_array_(bip32_key_serialize, 3, 4, BIP32_SERIALIZED_LEN);
+%returns_string(bip32_key_to_base58);
 %returns_struct(bip32_key_unserialize_alloc, ext_key);
 %rename("bip32_key_unserialize") bip32_key_unserialize_alloc;
 %returns_array_(bip38_raw_from_private_key, 6, 7, BIP38_SERIALIZED_LEN);
 %returns_string(bip38_from_private_key);
 %returns_array_(bip38_raw_to_private_key, 6, 7, 32);
 %returns_array_(bip38_to_private_key, 5, 6, 32);
+%returns_size_t(bip38_raw_get_flags);
+%returns_size_t(bip38_get_flags);
 %returns_string(bip39_get_languages);
 %returns_struct(bip39_get_wordlist, words);
 %returns_string(bip39_get_word);
@@ -373,6 +402,9 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %returns_string(wally_base58_from_bytes);
 %returns_size_t(wally_base58_to_bytes);
 %returns_size_t(wally_base58_get_length);
+%returns_string(wally_confidential_addr_to_addr);
+%returns_array_(wally_confidential_addr_to_ec_public_key, 3, 4, EC_PUBLIC_KEY_LEN);
+%returns_string(wally_confidential_addr_from_addr);
 %returns_void__(wally_ec_private_key_verify);
 %returns_array_(wally_ec_public_key_decompress, 3, 4, EC_PUBLIC_KEY_UNCOMPRESSED_LEN);
 %returns_array_(wally_ec_public_key_from_private_key, 3, 4, EC_PUBLIC_KEY_LEN);
@@ -388,10 +420,15 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %returns_array_(wally_hmac_sha256, 5, 6, HMAC_SHA256_LEN);
 %returns_array_(wally_hmac_sha512, 5, 6, HMAC_SHA512_LEN);
 %returns_void__(wally_init);
+%rename("_is_elements_build") wally_is_elements_build;
+%returns_size_t(_is_elements_build);
 %returns_array_(wally_pbkdf2_hmac_sha256, 7, 8, PBKDF2_HMAC_SHA256_LEN);
 %returns_array_(wally_pbkdf2_hmac_sha512, 7, 8, PBKDF2_HMAC_SHA512_LEN);
 %returns_size_t(wally_script_push_from_bytes);
+%returns_size_t(wally_scriptpubkey_csv_2of2_then_1_from_bytes);
+%returns_size_t(wally_scriptpubkey_csv_2of3_then_2_from_bytes);
 %returns_size_t(wally_scriptpubkey_get_type);
+%returns_size_t(wally_scriptpubkey_op_return_from_bytes);
 %returns_size_t(wally_scriptpubkey_p2pkh_from_bytes);
 %returns_size_t(wally_scriptpubkey_p2sh_from_bytes);
 %returns_size_t(wally_scriptpubkey_multisig_from_bytes);
@@ -402,29 +439,151 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %returns_void__(wally_secp_randomize);
 %returns_array_(wally_sha256, 3, 4, SHA256_LEN);
 %returns_array_(wally_sha256d, 3, 4, SHA256_LEN);
+%returns_array_(wally_sha256_midstate, 3, 4, SHA256_LEN);
 %returns_array_(wally_sha512, 3, 4, SHA512_LEN);
+%returns_void__(wally_tx_add_elements_raw_input);
+%returns_void__(wally_tx_add_elements_raw_output);
 %returns_void__(wally_tx_add_input);
 %returns_void__(wally_tx_add_raw_input);
 %returns_void__(wally_tx_add_output);
 %returns_void__(wally_tx_add_raw_output);
+%returns_array_(wally_tx_confidential_value_from_satoshi, 2, 3, WALLY_TX_ASSET_CT_VALUE_UNBLIND_LEN);
+%returns_struct(wally_tx_elements_input_init_alloc, wally_tx_input);
+%rename("_tx_elements_input_is_pegin") wally_tx_elements_input_is_pegin;
+%returns_size_t(_tx_elements_input_is_pegin);
+%returns_void__(wally_tx_elements_input_issuance_set);
+%returns_void__(wally_tx_elements_input_issuance_free);
+%returns_array_(wally_tx_elements_issuance_calculate_asset, 3, 4, SHA256_LEN);
+%returns_array_(wally_tx_elements_issuance_calculate_reissuance_token, 4, 5, SHA256_LEN);
+%returns_array_(wally_tx_elements_issuance_generate_entropy, 6, 7, SHA256_LEN);
+%returns_struct(wally_tx_elements_output_init_alloc, wally_tx_output);
 %returns_void__(wally_tx_free);
 %returns_struct(wally_tx_from_bytes, wally_tx);
 %returns_struct(wally_tx_from_hex, wally_tx);
 %returns_array_(wally_tx_get_btc_signature_hash, 8, 9, SHA256_LEN);
+%returns_array_(wally_tx_get_elements_signature_hash, 9, 10, SHA256_LEN);
+%returns_array_(wally_tx_get_input_blinding_nonce, 3, 4, SHA256_LEN);
+%returns_array_(wally_tx_get_input_entropy, 3, 4, SHA256_LEN);
+%rename("_tx_get_input_issuance_amount") wally_tx_get_input_issuance_amount;
+%returns_size_t(_tx_get_input_issuance_amount);
+%returns_size_t(wally_tx_get_input_issuance_amount_len);
+%rename("_tx_get_input_issuance_amount_rangeproof") wally_tx_get_input_issuance_amount_rangeproof;
+%returns_size_t(_tx_get_input_issuance_amount_rangeproof);
+%returns_size_t(wally_tx_get_input_issuance_amount_rangeproof_len);
+%returns_size_t(wally_tx_get_input_index);
+%rename("_tx_get_input_inflation_keys") wally_tx_get_input_inflation_keys;
+%returns_size_t(_tx_get_input_inflation_keys);
+%returns_size_t(wally_tx_get_input_inflation_keys_len);
+%rename("_tx_get_input_inflation_keys_rangeproof") wally_tx_get_input_inflation_keys_rangeproof;
+%returns_size_t(_tx_get_input_inflation_keys_rangeproof);
+%returns_size_t(wally_tx_get_input_inflation_keys_rangeproof_len);
+%rename("_tx_get_input_script") wally_tx_get_input_script;
+%returns_size_t(_tx_get_input_script);
+%returns_size_t(wally_tx_get_input_script_len);
+%rename("_tx_get_input_sequence") wally_tx_get_input_sequence;
+%returns_size_t(_tx_get_input_sequence);
+%returns_array_(wally_tx_get_input_txhash, 3, 4, SHA256_LEN);
+%rename("_tx_get_input_witness") wally_tx_get_input_witness;
+%returns_size_t(_tx_get_input_witness);
+%returns_size_t(wally_tx_get_input_witness_len);
 %returns_size_t(wally_tx_get_length);
+%returns_size_t(wally_tx_get_locktime);
+%returns_size_t(wally_tx_get_num_inputs);
+%returns_size_t(wally_tx_get_num_outputs);
+%rename("_tx_get_output_asset") wally_tx_get_output_asset;
+%returns_size_t(_tx_get_output_asset);
+%returns_size_t(wally_tx_get_output_asset_len);
+%rename("_tx_get_output_nonce") wally_tx_get_output_nonce;
+%returns_size_t(_tx_get_output_nonce);
+%returns_size_t(wally_tx_get_output_nonce_len);
+%rename("_tx_get_output_rangeproof") wally_tx_get_output_rangeproof;
+%returns_size_t(_tx_get_output_rangeproof);
+%returns_size_t(wally_tx_get_output_rangeproof_len);
+%returns_uint64(wally_tx_get_output_satoshi);
+%rename("_tx_get_output_script") wally_tx_get_output_script;
+%returns_size_t(_tx_get_output_script);
+%returns_size_t(wally_tx_get_output_script_len);
+%rename("_tx_get_output_surjectionproof") wally_tx_get_output_surjectionproof;
+%returns_size_t(_tx_get_output_surjectionproof);
+%returns_size_t(wally_tx_get_output_surjectionproof_len);
+%rename("_tx_get_output_value") wally_tx_get_output_value;
+%returns_size_t(_tx_get_output_value);
+%returns_size_t(wally_tx_get_output_value_len);
 %returns_array_(wally_tx_get_signature_hash, 12, 13, SHA256_LEN);
+%returns_uint64(wally_tx_get_total_output_satoshi);
+%returns_size_t(wally_tx_get_version);
 %returns_size_t(wally_tx_get_vsize);
 %returns_size_t(wally_tx_get_weight);
 %returns_size_t(wally_tx_get_witness_count);
 %returns_struct(wally_tx_init_alloc, wally_tx);
 %returns_void__(wally_tx_input_free);
+%returns_array_(wally_tx_input_get_blinding_nonce, 2, 3, SHA256_LEN);
+%returns_array_(wally_tx_input_get_entropy, 2, 3, SHA256_LEN);
+%rename("_tx_input_get_issuance_amount") wally_tx_input_get_issuance_amount;
+%returns_size_t(_tx_input_get_issuance_amount);
+%returns_size_t(wally_tx_input_get_issuance_amount_len);
+%returns_size_t(wally_tx_input_get_index);
+%rename("_tx_input_get_inflation_keys") wally_tx_input_get_inflation_keys;
+%returns_size_t(_tx_input_get_inflation_keys);
+%returns_size_t(wally_tx_input_get_inflation_keys_len);
+%rename("_tx_input_get_issuance_amount_rangeproof") wally_tx_input_get_issuance_amount_rangeproof;
+%returns_size_t(_tx_input_get_issuance_amount_rangeproof);
+%returns_size_t(wally_tx_input_get_issuance_amount_rangeproof_len);
+%rename("_tx_input_get_inflation_keys_rangeproof") wally_tx_input_get_inflation_keys_rangeproof;
+%returns_size_t(_tx_input_get_inflation_keys_rangeproof);
+%returns_size_t(wally_tx_input_get_inflation_keys_rangeproof_len);
+%rename("_tx_input_get_script") wally_tx_input_get_script;
+%returns_size_t(_tx_input_get_script);
+%returns_size_t(wally_tx_input_get_script_len);
+%rename("_tx_input_get_sequence") wally_tx_input_get_sequence;
+%returns_size_t(_tx_input_get_sequence);
+%returns_array_(wally_tx_input_get_txhash, 2, 3, SHA256_LEN);
+%rename("_tx_input_get_witness") wally_tx_input_get_witness;
+%returns_size_t(_tx_input_get_witness);
+%returns_size_t(wally_tx_input_get_witness_len);
 %returns_struct(wally_tx_input_init_alloc, wally_tx_input);
+%rename("_tx_is_coinbase") wally_tx_is_coinbase;
+%returns_size_t(_tx_is_coinbase);
+%rename("_tx_is_elements") wally_tx_is_elements;
+%returns_size_t(_tx_is_elements);
+%returns_void__(wally_tx_elements_output_commitment_set);
+%returns_void__(wally_tx_elements_output_commitment_free);
 %returns_void__(wally_tx_output_free);
+%rename("_tx_output_get_asset") wally_tx_output_get_asset;
+%returns_size_t(_tx_output_get_asset);
+%returns_size_t(wally_tx_output_get_asset_len);
+%rename("_tx_output_get_nonce") wally_tx_output_get_nonce;
+%returns_size_t(_tx_output_get_nonce);
+%returns_size_t(wally_tx_output_get_nonce_len);
+%rename("_tx_output_get_rangeproof") wally_tx_output_get_rangeproof;
+%returns_size_t(_tx_output_get_rangeproof);
+%returns_size_t(wally_tx_output_get_rangeproof_len);
+%returns_uint64(wally_tx_output_get_satoshi);
+%rename("_tx_output_get_script") wally_tx_output_get_script;
+%returns_size_t(_tx_output_get_script);
+%returns_size_t(wally_tx_output_get_script_len);
+%rename("_tx_output_get_surjectionproof") wally_tx_output_get_surjectionproof;
+%returns_size_t(_tx_output_get_surjectionproof);
+%returns_size_t(wally_tx_output_get_surjectionproof_len);
+%rename("_tx_output_get_value") wally_tx_output_get_value;
+%returns_size_t(_tx_output_get_value);
+%returns_size_t(wally_tx_output_get_value_len);
 %returns_struct(wally_tx_output_init_alloc, wally_tx_output);
+%returns_void__(wally_tx_output_set_satoshi);
+%returns_void__(wally_tx_output_set_script);
+%returns_void__(wally_tx_output_set_asset);
+%returns_void__(wally_tx_output_set_value);
+%returns_void__(wally_tx_output_set_nonce);
+%returns_void__(wally_tx_output_set_surjectionproof);
+%returns_void__(wally_tx_output_set_rangeproof);
 %returns_void__(wally_tx_remove_input);
 %returns_void__(wally_tx_remove_output);
+%returns_void__(wally_tx_set_input_index);
+%returns_void__(wally_tx_set_input_sequence);
 %returns_void__(wally_tx_set_input_script);
 %returns_void__(wally_tx_set_input_witness);
+%returns_void__(wally_tx_set_output_satoshi);
+%returns_void__(wally_tx_set_output_script);
 %returns_size_t(wally_tx_to_bytes);
 %returns_string(wally_tx_to_hex);
 %returns_size_t(wally_tx_vsize_from_weight);
@@ -434,7 +593,16 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %returns_struct(wally_tx_witness_stack_init_alloc, wally_tx_witness_stack);
 %returns_void__(wally_tx_witness_stack_set);
 %returns_void__(wally_tx_witness_stack_set_dummy);
+%returns_string(wally_wif_from_bytes);
+%returns_size_t(wally_wif_to_bytes);
+%rename("_wif_is_uncompressed") wally_wif_is_uncompressed;
+%returns_size_t(_wif_is_uncompressed);
+%returns_size_t(wally_wif_to_public_key);
+%returns_string(wally_wif_to_address);
 %returns_size_t(wally_witness_program_from_bytes);
+
+%rename("_cleanup") wally_cleanup;
+%returns_void__(_cleanup)
 
 %include "../include/wally_core.h"
 %include "../include/wally_address.h"

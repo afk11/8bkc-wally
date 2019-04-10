@@ -2,7 +2,7 @@
 
 kwargs = {
     'name': 'wallycore',
-    'version': '0.6.1',
+    'version': '0.6.8',
     'description': 'libwally Bitcoin library',
     'long_description': 'Python bindings for the libwally Bitcoin library',
     'url': 'https://github.com/ElementsProject/libwally-core',
@@ -48,6 +48,7 @@ if platform.system() == "Windows":
             ('WALLY_CORE_BUILD', None),
             ('HAVE_CONFIG_H', None),
             ('SECP256K1_BUILD', None),
+            ('BUILD_ELEMENTS', None),
             ],
         include_dirs=[
             # Borrowing config from wrap_js
@@ -76,6 +77,7 @@ else:
     import os
     import platform
     import subprocess
+    import multiprocessing
 
     class _build_py(distutils.command.build_py.build_py):
 
@@ -86,9 +88,11 @@ else:
                 subprocess.check_call(cmd.split(' '), cwd=abs_path)
 
             # Run the autotools/make build to generate a python extension module
+            extra_build_options = os.getenv('ENABLE_ELEMENTS', '')
+            call('./tools/cleanup.sh')
             call('./tools/autogen.sh')
-            call('./configure --enable-swig-python')
-            call('make')
+            call('./configure --enable-swig-python --enable-ecmult-static-precomputation {}'.format(extra_build_options))
+            call('make -j{}'.format(multiprocessing.cpu_count()))
 
             # Copy the so that has just been built to the build_dir that distutils expects it to be in
             # The extension of the built lib is dylib on osx

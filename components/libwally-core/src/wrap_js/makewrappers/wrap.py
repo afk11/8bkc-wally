@@ -80,6 +80,12 @@ FUNCS = [
         'uint32_t[flags]', 'out_bytes_sized'
     ], out_size='Math.ceil(_arguments[2].length / 16) * 16 + 16')),
 
+    # Script:
+    ('wally_scriptpubkey_multisig_from_bytes', F([
+        'const_bytes[bytes]', 'uint32_t[threshold]', 'uint32_t[flags]',
+        'out_bytes_sized'
+    ], out_size='Math.ceil(_arguments[0].length / 33) * 34 + 3')),
+
     # Scrypt:
     ('wally_scrypt', F([
         'const_bytes[passwd]', 'const_bytes[salt]',
@@ -104,6 +110,16 @@ FUNCS = [
         'string[bip38]', 'const_bytes[pass]', 'uint32_t[flags]',
         'out_bytes_fixedsized'
     ], out_size='32')),
+
+    # BIP39:
+    ('bip39_get_languages', F([
+        'out_str_p'])),
+    ('bip39_mnemonic_from_bytes', F([
+        'bip39_words_lang_in', 'const_bytes[entropy]',
+        'out_str_p'])),
+    ('bip39_mnemonic_to_seed', F([
+        'string[mnemonic]', 'string[pass]', 'out_bytes_sized'
+    ], out_size='64')),
 
     # signing:
     ('wally_ec_sig_from_bytes', F([
@@ -130,6 +146,13 @@ FUNCS = [
     ('bip32_key_get_priv_key', F([
         'bip32_in', 'out_bytes_fixedsized'
     ], out_size='32')),
+    ('bip32_key_get_pub_key', F([
+        'bip32_in', 'out_bytes_fixedsized'
+    ], out_size='33')),
+
+    ('wally_ec_public_key_from_private_key', F([
+        'const_bytes[key]', 'out_bytes_fixedsized'
+    ], out_size='33')),
 
     ('wally_format_bitcoin_message', F([
         'const_bytes[message]', 'uint32_t[flags]',
@@ -190,15 +213,23 @@ def open_file(prefix, name):
 def main():
     prefix = 'wrap_js/'
     build_type = sys.argv[2]
+    try:
+        extra_args = sys.argv[3]
+    except IndexError:
+        extra_args = ''
+
+    node_funcs = FUNCS
+    if 'elements' in extra_args:
+        node_funcs += FUNCS_NODE
 
     if sys.argv[1] == 'nodejs':
         # Node.js wrapper using Native Abstractions for Node.js
         with open_file(prefix, 'nodejs_wrap.cc') as f:
-            f.write(nan.generate(FUNCS + FUNCS_NODE, build_type))
+            f.write(nan.generate(node_funcs, build_type))
     elif sys.argv[1] == 'wally':
         # JS wrapper to choose cordova or node at run time
         with open_file(prefix, 'wally.js') as f:
-            f.write(js.generate(FUNCS + FUNCS_NODE, build_type))
+            f.write(js.generate(node_funcs, build_type))
             f.write(export_js_constants.generate(os.path.pardir))
     elif sys.argv[1] == 'cordova-java':
         # Java cordova plugin for Android

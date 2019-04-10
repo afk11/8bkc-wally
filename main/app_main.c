@@ -162,14 +162,11 @@ void app_main() {
             0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55
     };
 
-    unsigned char* pubKey = NULL;
-    pubKey = malloc(EC_PUBLIC_KEY_LEN);
-    if (!pubKey) {
-        print_and_confirm("failed to alloc for pub key");
-        wally_cleanup(0);
-        do_close_screen();
-    }
-    print_and_confirm("gen ctx");
+    unsigned char pubKey[EC_PUBLIC_KEY_LEN];
+    print_and_confirm("ready?");
+    print_and_confirm("steady?");
+    print_and_confirm("go!");
+
     if (WALLY_OK != wally_ec_public_key_from_private_key(seed, EC_PRIVATE_KEY_LEN, pubKey, EC_PUBLIC_KEY_LEN)) {
         print_and_confirm("failed to create pubkey");
         wally_cleanup(0);

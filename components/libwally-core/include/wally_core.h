@@ -51,7 +51,7 @@ WALLY_CORE_API int wally_cleanup(uint32_t flags);
  *
  * The context is created on demand.
  */
-struct secp256k1_context_struct *wally_get_secp_context(void);
+struct secp256k1_context *wally_get_secp_context(void);
 #endif
 
 /**
@@ -73,7 +73,7 @@ WALLY_CORE_API int wally_free_string(
     char *str);
 
 /** Length of entropy required for ``wally_randomize_context`` */
-#define WALLY_SECP_RANDOMISE_LEN 32
+#define WALLY_SECP_RANDOMIZE_LEN 32
 
 /**
  * Provide entropy to randomize the libraries internal libsecp256k1 context.
@@ -89,7 +89,7 @@ WALLY_CORE_API int wally_free_string(
  * in an application level mutex.
  *
  * :param bytes: Entropy to use.
- * :param bytes_len: Size of ``bytes`` in bytes. Must be ``WALLY_SECP_RANDOMISE_LEN``.
+ * :param bytes_len: Size of ``bytes`` in bytes. Must be ``WALLY_SECP_RANDOMIZE_LEN``.
  */
 WALLY_CORE_API int wally_secp_randomize(
     const unsigned char *bytes,
@@ -237,6 +237,13 @@ WALLY_CORE_API int wally_set_operations(
     const struct wally_operations *ops);
 
 #endif /* SWIG */
+
+/**
+ * Determine if the library was built with elements support.
+ *
+ * :param value_out: 1 if the library supports elements, otherwise 0.
+ */
+WALLY_CORE_API int wally_is_elements_build(uint64_t *value_out);
 
 #ifdef __cplusplus
 }

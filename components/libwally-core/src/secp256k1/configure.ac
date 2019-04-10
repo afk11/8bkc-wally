@@ -85,9 +85,9 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[char foo;]])],
     ])
 
 AC_ARG_ENABLE(benchmark,
-    AS_HELP_STRING([--enable-benchmark],[compile benchmark (default is no)]),
+    AS_HELP_STRING([--enable-benchmark],[compile benchmark (default is yes)]),
     [use_benchmark=$enableval],
-    [use_benchmark=no])
+    [use_benchmark=yes])
 
 AC_ARG_ENABLE(coverage,
     AS_HELP_STRING([--enable-coverage],[enable compiler flags to support kcov coverage analysis]),
@@ -150,9 +150,9 @@ AC_ARG_ENABLE(module_whitelist,
     [enable_module_whitelist=no])
 
 AC_ARG_ENABLE(jni,
-    AS_HELP_STRING([--enable-jni],[enable libsecp256k1_jni (default is auto)]),
+    AS_HELP_STRING([--enable-jni],[enable libsecp256k1_jni (default is no)]),
     [use_jni=$enableval],
-    [use_jni=auto])
+    [use_jni=no])
 
 AC_ARG_ENABLE(module_surjectionproof,
     AS_HELP_STRING([--enable-module-surjectionproof],[enable surjection proof module (default is no)]),
@@ -195,26 +195,49 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[void myfunc() {__builtin_popcount(0);}]])],
 
 if test x"$use_ecmult_static_precomputation" != x"no"; then
   save_cross_compiling=$cross_compiling
-  cross_compiling=yes
-  TEMP_CC="$CC"
+  cross_compiling=no
+  SAVE_CC="$CC"
   CC="$CC_FOR_BUILD"
-  AC_MSG_CHECKING([native compiler: ${CC_FOR_BUILD}])
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS_FOR_BUILD"
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS_FOR_BUILD"
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS_FOR_BUILD"
+
+  warn_CFLAGS_FOR_BUILD="-Wall -Wextra -Wno-unused-function"
+  saved_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS $warn_CFLAGS_FOR_BUILD"
+  AC_MSG_CHECKING([if native ${CC_FOR_BUILD} supports ${warn_CFLAGS_FOR_BUILD}])
+  AC_COMPILE_IFELSE([AC_LANG_SOURCE([[char foo;]])],
+      [ AC_MSG_RESULT([yes]) ],
+      [ AC_MSG_RESULT([no])
+        CFLAGS="$saved_CFLAGS"
+      ])
+
+  AC_MSG_CHECKING([for working native compiler: ${CC_FOR_BUILD}])
   AC_RUN_IFELSE(
     [AC_LANG_PROGRAM([], [return 0])],
     [working_native_cc=yes],
     [working_native_cc=no],[dnl])
-  CC="$TEMP_CC"
+
+  CFLAGS_FOR_BUILD="$CFLAGS"
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  CFLAGS="$SAVE_CFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+  CC="$SAVE_CC"
   cross_compiling=$save_cross_compiling
 
   if test x"$working_native_cc" = x"no"; then
+    AC_MSG_RESULT([no])
     set_precomp=no
     if test x"$use_ecmult_static_precomputation" = x"yes";  then
-      AC_MSG_ERROR([${CC_FOR_BUILD} does not produce working binaries. Please set CC_FOR_BUILD])
+      AC_MSG_ERROR([native compiler ${CC_FOR_BUILD} does not produce working binaries. Please set CC_FOR_BUILD and/or CFLAGS_FOR_BUILD.])
     else
-      AC_MSG_RESULT([${CC_FOR_BUILD} does not produce working binaries. Please set CC_FOR_BUILD])
+      AC_MSG_WARN([Disabling statically generated ecmult table because the native compiler ${CC_FOR_BUILD} does not produce working binaries. Please set CC_FOR_BUILD and/or CFLAGS_FOR_BUILD.])
     fi
   else
-    AC_MSG_RESULT([ok])
+    AC_MSG_RESULT([yes])
     set_precomp=yes
   fi
 else
@@ -498,6 +521,7 @@ AC_MSG_NOTICE([Using field implementation: $set_field])
 AC_MSG_NOTICE([Using bignum implementation: $set_bignum])
 AC_MSG_NOTICE([Using scalar implementation: $set_scalar])
 AC_MSG_NOTICE([Using endomorphism optimizations: $use_endomorphism])
+AC_MSG_NOTICE([Building benchmarks: $use_benchmark])
 AC_MSG_NOTICE([Building for coverage analysis: $enable_coverage])
 AC_MSG_NOTICE([Building ECDH module: $enable_module_ecdh])
 AC_MSG_NOTICE([Building ECDSA pubkey recovery module: $enable_module_recovery])

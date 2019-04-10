@@ -53,6 +53,61 @@ c_ulong_p = c_ulong_p_class()
 # ctypes is missing this for some reason
 c_uint_p = POINTER(c_uint)
 
+class wally_tx_witness_item(Structure):
+    _fields_ = [('witness', c_void_p),
+                ('len', c_ulong)]
+
+class wally_tx_witness_stack(Structure):
+    _fields_ = [('items', POINTER(wally_tx_witness_item)),
+                ('num_items', c_ulong),
+                ('items_allocation_len', c_ulong)]
+
+class wally_tx_input(Structure):
+    _fields_ = [('txhash', c_ubyte * 32),
+                ('index', c_uint),
+                ('sequence', c_uint),
+                ('script', c_void_p),
+                ('script_len', c_ulong),
+                ('witness',  POINTER(wally_tx_witness_stack)),
+                ('features', c_ubyte),
+                ('blinding_nonce', c_ubyte * 32),
+                ('entropy', c_ubyte * 32),
+                ('issuance_amount', c_void_p),
+                ('issuance_amount_len', c_ulong),
+                ('inflation_keys', c_void_p),
+                ('inflation_keys_len', c_ulong),
+                ('issuance_amount_rangeproof', c_void_p),
+                ('issuance_amount_rangeproof_len', c_ulong),
+                ('inflation_keys_rangeproof', c_void_p),
+                ('inflation_keys_rangeproof_len', c_ulong),
+                ('pegin_witness', POINTER(wally_tx_witness_stack))]
+
+class wally_tx_output(Structure):
+    _fields_ = [('satoshi', c_ulonglong),
+                ('script', c_void_p),
+                ('script_len', c_ulong),
+                ('features', c_ubyte),
+                ('asset', c_void_p),
+                ('asset_len', c_ulong),
+                ('value', c_void_p),
+                ('value_len', c_ulong),
+                ('nonce', c_void_p),
+                ('nonce_len', c_ulong),
+                ('surjectionproof', c_void_p),
+                ('surjectionproof_len', c_ulong),
+                ('rangeproof', c_void_p),
+                ('rangeproof_len', c_ulong)]
+
+class wally_tx(Structure):
+    _fields_ = [('version', c_uint),
+                ('locktime', c_uint),
+                ('inputs', POINTER(wally_tx_input)),
+                ('num_inputs', c_ulong),
+                ('inputs_allocation_len', c_ulong),
+                ('outputs', POINTER(wally_tx_output)),
+                ('num_outputs', c_ulong),
+                ('outputs_allocation_len', c_ulong),]
+
 for f in (
     ('wally_init', c_int, [c_uint]),
     ('wally_cleanup', c_int, [c_uint]),
@@ -71,10 +126,15 @@ for f in (
     ('bip32_key_unserialize', c_int, [c_void_p, c_uint, POINTER(ext_key)]),
     ('bip32_key_from_parent', c_int, [c_void_p, c_uint, c_uint, POINTER(ext_key)]),
     ('bip32_key_from_parent_path', c_int, [c_void_p, c_uint_p, c_ulong, c_uint, POINTER(ext_key)]),
+    ('bip32_key_to_base58', c_int, [POINTER(ext_key), c_uint, c_char_p_p]),
+    ('bip32_key_from_base58', c_int, [c_char_p, POINTER(ext_key)]),
+    ('bip32_key_from_base58_alloc', c_int, [c_char_p, POINTER(POINTER(ext_key))]),
     ('bip38_raw_from_private_key', c_int, [c_void_p, c_ulong, c_void_p, c_ulong, c_uint, c_void_p, c_ulong]),
     ('bip38_from_private_key', c_int, [c_void_p, c_ulong, c_void_p, c_ulong, c_uint, c_char_p_p]),
     ('bip38_to_private_key', c_int, [c_char_p, c_void_p, c_ulong, c_uint, c_void_p, c_ulong]),
     ('bip38_raw_to_private_key', c_int, [c_void_p, c_ulong, c_void_p, c_ulong, c_uint, c_void_p, c_ulong]),
+    ('bip38_raw_get_flags', c_int, [c_void_p, c_ulong, c_ulong_p]),
+    ('bip38_get_flags', c_int, [c_char_p, c_ulong_p]),
     ('bip39_get_languages', c_int, [c_char_p_p]),
     ('bip39_get_wordlist', c_int, [c_char_p, POINTER(c_void_p)]),
     ('bip39_get_word', c_int, [c_void_p, c_ulong, c_char_p_p]),
@@ -84,6 +144,9 @@ for f in (
     ('bip39_mnemonic_to_seed', c_int, [c_char_p, c_char_p, c_void_p, c_ulong, c_ulong_p]),
     ('wally_addr_segwit_from_bytes', c_int, [c_void_p, c_ulong, c_char_p, c_uint, c_char_p_p]),
     ('wally_addr_segwit_to_bytes', c_int, [c_void_p, c_char_p, c_uint, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_confidential_addr_from_addr', c_int, [c_char_p, c_uint, c_void_p, c_ulong, c_char_p_p]),
+    ('wally_confidential_addr_to_addr', c_int, [c_char_p, c_uint, c_char_p_p]),
+    ('wally_confidential_addr_to_ec_public_key', c_int, [c_char_p, c_uint, c_void_p, c_ulong]),
     ('wally_sha256', c_int, [c_void_p, c_ulong, c_void_p, c_ulong]),
     ('wally_sha256d', c_int, [c_void_p, c_ulong, c_void_p, c_ulong]),
     ('wally_sha512', c_int, [c_void_p, c_ulong, c_void_p, c_ulong]),
@@ -111,8 +174,52 @@ for f in (
     ('wally_format_bitcoin_message', c_int, [c_void_p, c_ulong, c_uint, c_void_p, c_ulong, c_ulong_p]),
     ('wally_scriptpubkey_get_type', c_int, [c_void_p, c_ulong, c_ulong_p]),
     ('wally_script_push_from_bytes', c_int, [c_void_p, c_ulong, c_uint, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_scriptpubkey_op_return_from_bytes', c_int, [c_void_p, c_ulong, c_uint, c_void_p, c_ulong, c_ulong_p]),
     ('wally_scriptpubkey_p2pkh_from_bytes', c_int, [c_void_p, c_ulong, c_uint, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_scriptpubkey_p2sh_from_bytes', c_int, [c_void_p, c_ulong, c_uint, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_scriptpubkey_multisig_from_bytes', c_int, [c_void_p, c_ulong, c_uint, c_uint, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_scriptpubkey_csv_2of2_then_1_from_bytes', c_int, [c_void_p, c_ulong, c_uint, c_uint, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_scriptpubkey_csv_2of3_then_2_from_bytes', c_int, [c_void_p, c_ulong, c_uint, c_uint, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_scriptsig_p2pkh_from_der', c_int, [c_void_p, c_ulong, c_void_p, c_ulong, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_scriptsig_p2pkh_from_sig', c_int, [c_void_p, c_ulong, c_void_p, c_ulong, c_uint, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_scriptsig_multisig_from_bytes', c_int, [c_void_p, c_ulong, c_void_p, c_ulong, c_uint_p, c_ulong, c_uint, c_void_p, c_ulong, c_ulong_p]),
     ('wally_witness_program_from_bytes', c_int, [c_void_p, c_ulong, c_uint, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_tx_to_hex', c_int, [POINTER(wally_tx), c_uint, c_char_p_p]),
+    ('wally_tx_from_hex', c_int, [c_char_p, c_uint, POINTER(POINTER(wally_tx))]),
+    ('wally_tx_to_bytes', c_int, [POINTER(wally_tx), c_uint, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_tx_from_bytes', c_int, [c_void_p, c_ulong, c_uint, POINTER(POINTER(wally_tx))]),
+    ('wally_tx_init_alloc', c_int, [c_uint, c_uint, c_ulong, c_ulong, POINTER(POINTER(wally_tx))]),
+    ('wally_tx_free', c_int, [POINTER(wally_tx)]),
+    ('wally_tx_get_length', c_int, [POINTER(wally_tx), c_uint, c_ulong_p]),
+    ('wally_tx_get_vsize', c_int, [POINTER(wally_tx), c_ulong_p]),
+    ('wally_tx_get_weight', c_int, [POINTER(wally_tx), c_ulong_p]),
+    ('wally_tx_vsize_from_weight', c_int, [c_ulong, c_ulong_p]),
+    ('wally_tx_get_total_output_satoshi', c_int, [POINTER(wally_tx), POINTER(c_ulonglong)]),
+    ('wally_tx_get_witness_count', c_int, [POINTER(wally_tx), c_ulong_p]),
+    ('wally_tx_get_btc_signature_hash', c_int, [POINTER(wally_tx), c_ulong, c_void_p, c_ulong, c_ulonglong, c_uint, c_uint, c_void_p, c_ulong]),
+    ('wally_tx_witness_stack_init_alloc', c_int, [c_ulong, POINTER(POINTER(wally_tx_witness_stack))]),
+    ('wally_tx_witness_stack_free', c_int, [POINTER(wally_tx_witness_stack)]),
+    ('wally_tx_witness_stack_add', c_int, [POINTER(wally_tx_witness_stack), c_void_p, c_ulong]),
+    ('wally_tx_witness_stack_add_dummy', c_int, [POINTER(wally_tx_witness_stack), c_uint]),
+    ('wally_tx_witness_stack_set', c_int, [POINTER(wally_tx_witness_stack), c_ulong, c_void_p, c_ulong]),
+    ('wally_tx_witness_stack_set_dummy', c_int, [POINTER(wally_tx_witness_stack), c_ulong, c_uint]),
+    ('wally_tx_output_init_alloc', c_int, [c_ulonglong, c_void_p, c_ulong, POINTER(POINTER(wally_tx_output))]),
+    ('wally_tx_output_free', c_int, [POINTER(wally_tx_output)]),
+    ('wally_tx_add_output', c_int, [POINTER(wally_tx), POINTER(wally_tx_output)]),
+    ('wally_tx_add_raw_output', c_int, [POINTER(wally_tx), c_ulonglong, c_void_p, c_ulong, c_uint]),
+    ('wally_tx_remove_output', c_int, [POINTER(wally_tx), c_ulong]),
+    ('wally_tx_input_init_alloc', c_int, [c_void_p, c_ulong, c_uint, c_uint, c_void_p, c_ulong, POINTER(wally_tx_witness_stack), POINTER(POINTER(wally_tx_input))]),
+    ('wally_tx_input_free', c_int, [POINTER(wally_tx_input)]),
+    ('wally_tx_add_input', c_int, [POINTER(wally_tx), POINTER(wally_tx_input)]),
+    ('wally_tx_add_raw_input', c_int, [POINTER(wally_tx), c_void_p, c_ulong, c_uint, c_uint, c_void_p, c_ulong, POINTER(wally_tx_witness_stack), c_uint]),
+    ('wally_tx_remove_input', c_int, [POINTER(wally_tx), c_ulong]),
+    ('wally_tx_set_input_script', c_int, [POINTER(wally_tx), c_ulong, c_void_p, c_ulong]),
+    ('wally_tx_set_input_witness', c_int, [POINTER(wally_tx), c_ulong, POINTER(wally_tx_witness_stack)]),
+    ('wally_wif_from_bytes', c_int, [c_void_p, c_ulong, c_uint, c_uint, c_char_p_p]),
+    ('wally_wif_to_address', c_int, [c_char_p, c_uint, c_uint, c_char_p_p]),
+    ('wally_wif_to_bytes', c_int, [c_char_p, c_uint, c_uint, c_void_p, c_ulong]),
+    ('wally_wif_to_public_key', c_int, [c_char_p, c_uint, c_void_p, c_ulong, c_ulong_p]),
+    ('wally_wif_is_uncompressed', c_int, [c_char_p, c_ulong_p]),
     ):
 
     def bind_fn(name, res, args):
@@ -155,8 +262,13 @@ for f in (
         fn = mkint(fn)
     globals()[name] = fn
 
+is_python3 = int(sys.version[0]) >= 3
 def load_words(lang):
-    with open(root_dir + 'src/data/wordlists/%s.txt' % lang, 'r') as f:
+    kwargs = {'name': root_dir + 'src/data/wordlists/%s.txt' % lang, 'mode': 'r'}
+    if is_python3:
+        kwargs.update({'encoding': 'utf-8'})
+        kwargs['file'] = kwargs.pop('name')
+    with open(**kwargs) as f:
         words_list = [l.strip() for l in f.readlines()]
         return words_list, ' '.join(words_list)
 
@@ -169,7 +281,6 @@ def make_cbuffer(hex_in):
     hex_len = len(hex_in) // 2
     return unhexlify(hex_in), hex_len
 
-is_python3 = int(sys.version[0]) >= 3
 utf8 = lambda s: s
 if is_python3:
     utf8 = lambda s: s.encode('utf-8')

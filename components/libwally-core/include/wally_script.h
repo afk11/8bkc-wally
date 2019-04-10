@@ -22,6 +22,10 @@ extern "C" {
 #define WALLY_SCRIPTPUBKEY_P2WPKH_LEN 22 /** OP_0 [HASH160] */
 #define WALLY_SCRIPTPUBKEY_P2WSH_LEN  34 /** OP_0 [SHA256] */
 
+#define WALLY_SCRIPTPUBKEY_OP_RETURN_MAX_LEN 83 /** OP_RETURN [80 bytes of data] */
+
+#define WALLY_MAX_OP_RETURN_LEN 80 /* Maximum length of OP_RETURN data push */
+
 #define WALLY_SCRIPTSIG_P2PKH_MAX_LEN 140 /** [SIG+SIGHASH] [PUBKEY] */
 #define WALLY_WITNESSSCRIPT_MAX_LEN   35 /** (PUSH OF)0 [SHA256] */
 
@@ -241,6 +245,23 @@ WALLY_CORE_API int wally_scriptsig_p2pkh_from_der(
     size_t *written);
 
 /**
+ * Create an OP_RETURN scriptPubkey.
+ *
+ * :param bytes: Bytes to create a scriptPubkey for.
+ * :param bytes_len: Length of ``bytes`` in bytes. Must be less
+ *|    than or equal to ``WALLY_MAX_OP_RETURN_LEN``.
+ * :param flags: Currently unused, must be 0.
+ * :param bytes_out: Destination for the resulting scriptPubkey.
+ * :param len: The length of ``bytes_out`` in bytes. Passing
+ *|    ``WALLY_SCRIPTPUBKEY_OP_RETURN_MAX_LEN`` will ensure there is always
+ *|    enough room for the resulting scriptPubkey.
+ * :param written: Destination for the number of bytes written to ``bytes_out``.
+ */
+WALLY_CORE_API int wally_scriptpubkey_op_return_from_bytes(
+    const unsigned char *bytes, size_t bytes_len,
+    uint32_t flags, unsigned char *bytes_out, size_t len, size_t *written);
+
+/**
  * Create a P2SH scriptPubkey.
  *
  * :param bytes: Bytes to create a scriptPubkey for.
@@ -302,6 +323,58 @@ WALLY_CORE_API int wally_scriptsig_multisig_from_bytes(
     size_t bytes_len,
     const uint32_t *sighash,
     size_t sighash_len,
+    uint32_t flags,
+    unsigned char *bytes_out,
+    size_t len,
+    size_t *written);
+
+/**
+ * Create a CSV 2of2 multisig with a single key recovery scriptPubkey.
+ *
+ * The resulting output can be spent at any time with both of the two keys
+ * given, and by the last (recovery) key alone, ``csv_blocks`` after the
+ * output confirms.
+ *
+ * :param bytes: Compressed public keys to create a scriptPubkey from. The
+ *|    second key given will be used as the recovery key.
+ * :param bytes_len: Length of ``bytes`` in bytes. Must 2 * ``EC_PUBLIC_KEY_LEN``.
+ * :param csv_blocks: The number of blocks before the recovery key can be
+ *| used. Must be non-zero and less than 65536.
+ * :param flags: Must be zero.
+ * :param bytes_out: Destination for the resulting scriptPubkey.
+ * :param len: The length of ``bytes_out`` in bytes.
+ * :param written: Destination for the number of bytes written to ``bytes_out``.
+ */
+WALLY_CORE_API int wally_scriptpubkey_csv_2of2_then_1_from_bytes(
+    const unsigned char *bytes,
+    size_t bytes_len,
+    uint32_t csv_blocks,
+    uint32_t flags,
+    unsigned char *bytes_out,
+    size_t len,
+    size_t *written);
+
+/**
+ * Create a CSV 2of3 multisig with two key recovery scriptPubkey.
+ *
+ * The resulting output can be spent at any time with any two of the three keys
+ * given, and by either of the last two (recovery) keys alone, ``csv_blocks``
+ * after the output confirms.
+ *
+ * :param bytes: Compressed public keys to create a scriptPubkey from. The
+ *|    second and third keys given will be used as the recovery keys.
+ * :param bytes_len: Length of ``bytes`` in bytes. Must 3 * ``EC_PUBLIC_KEY_LEN``.
+ * :param csv_blocks: The number of blocks before the recovery keys can be
+ *| used. Must be non-zero and less than 65536.
+ * :param flags: Must be zero.
+ * :param bytes_out: Destination for the resulting scriptPubkey.
+ * :param len: The length of ``bytes_out`` in bytes.
+ * :param written: Destination for the number of bytes written to ``bytes_out``.
+ */
+WALLY_CORE_API int wally_scriptpubkey_csv_2of3_then_2_from_bytes(
+    const unsigned char *bytes,
+    size_t bytes_len,
+    uint32_t csv_blocks,
     uint32_t flags,
     unsigned char *bytes_out,
     size_t len,

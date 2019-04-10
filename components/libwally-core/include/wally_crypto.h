@@ -50,7 +50,7 @@ WALLY_CORE_API int wally_scrypt(
  * :param key_len: Length of ``key`` in bytes. Must be an AES_KEY_LEN_ constant.
  * :param bytes: Bytes to encrypt/decrypt.
  * :param bytes_len: Length of ``bytes`` in bytes. Must be a multiple of ``AES_BLOCK_LEN``.
- * :param flags: AES_FLAG_ constants indicating the desired behaviour.
+ * :param flags: AES_FLAG_ constants indicating the desired behavior.
  * :param bytes_out: Destination for the encrypted/decrypted data.
  * :param len: The length of ``bytes_out`` in bytes. Must be a multiple of ``AES_BLOCK_LEN``.
  */
@@ -72,7 +72,7 @@ WALLY_CORE_API int wally_aes(
  * :param iv_len: Length of ``iv`` in bytes. Must be ``AES_BLOCK_LEN``.
  * :param bytes: Bytes to encrypt/decrypt.
  * :param bytes_len: Length of ``bytes`` in bytes. Must be a multiple of ``AES_BLOCK_LEN``.
- * :param flags: AES_FLAG_ constants indicating the desired behaviour.
+ * :param flags: AES_FLAG_ constants indicating the desired behavior.
  * :param bytes_out: Destination for the encrypted/decrypted data.
  * :param len: The length of ``bytes_out`` in bytes. Must be a multiple of ``AES_BLOCK_LEN``.
  * :param written: Destination for the number of bytes written to ``bytes_out``.
@@ -105,6 +105,20 @@ WALLY_CORE_API int wally_aes_cbc(
  * :param len: The length of ``bytes_out`` in bytes. Must be ``SHA256_LEN``.
  */
 WALLY_CORE_API int wally_sha256(
+    const unsigned char *bytes,
+    size_t bytes_len,
+    unsigned char *bytes_out,
+    size_t len);
+
+/**
+ * SHA-256(m) midstate
+ *
+ * :param bytes: The message to hash
+ * :param bytes_len: The length of ``bytes`` in bytes.
+ * :param bytes_out: Destination for the resulting hash.
+ * :param len: The length of ``bytes_out`` in bytes. Must be ``SHA256_LEN``.
+ */
+WALLY_CORE_API int wally_sha256_midstate(
     const unsigned char *bytes,
     size_t bytes_len,
     unsigned char *bytes_out,
@@ -265,11 +279,15 @@ WALLY_CORE_API int wally_pbkdf2_hmac_sha512(
 #define EC_SIGNATURE_LEN 64
 /** The maximum encoded length of a DER encoded signature */
 #define EC_SIGNATURE_DER_MAX_LEN 72
+/** The maximum encoded length of a DER encoded signature created with EC_FLAG_GRIND_R */
+#define EC_SIGNATURE_DER_MAX_LOW_R_LEN 71
 
 /** Indicates that a signature using ECDSA/secp256k1 is required */
 #define EC_FLAG_ECDSA 0x1
 /** Indicates that a signature using EC-Schnorr-SHA256 is required */
 #define EC_FLAG_SCHNORR 0x2
+/** Indicates that the signature nonce should be incremented until the signature is low-R */
+#define EC_FLAG_GRIND_R 0x4
 
 
 /**
@@ -299,7 +317,7 @@ WALLY_CORE_API int wally_ec_public_key_from_private_key(
 /**
  * Create an uncompressed public key from a compressed public key.
  *
- * :param pub_key: The private key to create a public key from.
+ * :param pub_key: The public key to decompress.
  * :param pub_key_len: The length of ``pub_key`` in bytes. Must be ``EC_PUBLIC_KEY_LEN``.
  * :param bytes_out: Destination for the resulting public key.
  * :param len: The length of ``bytes_out`` in bytes. Must be ``EC_PUBLIC_KEY_UNCOMPRESSED_LEN``.
@@ -317,7 +335,7 @@ WALLY_CORE_API int wally_ec_public_key_decompress(
  * :param priv_key_len: The length of ``priv_key`` in bytes. Must be ``EC_PRIVATE_KEY_LEN``.
  * :param bytes: The message hash to sign.
  * :param bytes_len: The length of ``bytes`` in bytes. Must be ``EC_MESSAGE_HASH_LEN``.
- * :param flags: EC_FLAG_ flag values indicating desired behaviour.
+ * :param flags: EC_FLAG_ flag values indicating desired behavior.
  * :param bytes_out: Destination for the resulting compact signature.
  * :param len: The length of ``bytes_out`` in bytes. Must be ``EC_SIGNATURE_LEN``.
  */
@@ -381,7 +399,7 @@ WALLY_CORE_API int wally_ec_sig_from_der(
  * :param pub_key_len: The length of ``pub_key`` in bytes. Must be ``EC_PUBLIC_KEY_LEN``.
  * :param bytes: The message hash to verify.
  * :param bytes_len: The length of ``bytes`` in bytes. Must be ``EC_MESSAGE_HASH_LEN``.
- * :param flags: EC_FLAG_ flag values indicating desired behaviour.
+ * :param flags: EC_FLAG_ flag values indicating desired behavior.
  * :param sig: The compact signature of the message in ``bytes``.
  * :param sig_len: The length of ``sig`` in bytes. Must be ``EC_SIGNATURE_LEN``.
  */

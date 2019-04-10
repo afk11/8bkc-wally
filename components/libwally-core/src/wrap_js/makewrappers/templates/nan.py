@@ -11,7 +11,6 @@ TEMPLATE='''#include <nan.h>
 #include "../include/wally_elements.h"
 #include "../include/wally_script.h"
 #include <vector>
-
 namespace {
 
 static struct wally_operations w_ops;
@@ -275,7 +274,7 @@ def _generate_nan(funcname, f):
                 '}',
             ])
             result_wrap = 'str_res'
-        elif arg == 'out_bytes_sized':
+        elif arg.startswith('out_bytes_sized'):
             output_args.extend([
                 'const uint32_t res_size = GetUInt32(info, %s, ret);' % i,
                 'unsigned char *res_ptr = Allocate(res_size, ret);',
@@ -324,7 +323,7 @@ def _generate_nan(funcname, f):
                 'unsigned char* inbuf = (unsigned char*) node::Buffer::Data(info[%s]->ToObject());'
                 'bip32_key_unserialize_alloc(inbuf, node::Buffer::Length(info[%s]->ToObject()), &inkey);'
             ) % (i, i))
-            args.append('inkey');
+            args.append('inkey')
             postprocessing.append('bip32_key_free(inkey);')
         elif arg in ['bip32_pub_out', 'bip32_priv_out']:
             output_args.append(
@@ -337,6 +336,13 @@ def _generate_nan(funcname, f):
                     'bip32_priv_out': 'BIP32_FLAG_KEY_PRIVATE'}[arg]
             postprocessing.append('bip32_key_serialize(outkey, %s, out, BIP32_SERIALIZED_LEN);' % flag)
             postprocessing.append('bip32_key_free(outkey);')
+        elif arg in ['bip39_words_lang_in']:
+            input_args.append((
+                'struct words *wordlist;'
+                'if (ret == WALLY_OK)'
+                '    ret = bip39_get_wordlist(*Nan::Utf8String(info[%s]), &wordlist);'
+            ) % (i))
+            args.append('wordlist')
         else:
             assert False, 'unknown argument type'
 

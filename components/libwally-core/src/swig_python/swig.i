@@ -131,6 +131,19 @@ static void destroy_words(PyObject *obj) { (void)obj; }
 %pybuffer_binary(const unsigned char *txhash, size_t txhash_len);
 %pybuffer_binary(const unsigned char *vbf, size_t vbf_len);
 %pybuffer_nullable_binary(const unsigned char *witness, size_t witness_len);
+%pybuffer_binary(const unsigned char *nonce, size_t nonce_len);
+%pybuffer_binary(const unsigned char *entropy, size_t entropy_len);
+%pybuffer_binary(const unsigned char *contract_hash, size_t contract_hash_len);
+%pybuffer_nullable_binary(const unsigned char *issuance_amount_rangeproof, size_t issuance_amount_rangeproof_len);
+%pybuffer_nullable_binary(const unsigned char *inflation_keys_rangeproof, size_t inflation_keys_rangeproof_len);
+%pybuffer_nullable_binary(const unsigned char *asset, size_t asset_len);
+%pybuffer_nullable_binary(const unsigned char *value, size_t value_len);
+%pybuffer_nullable_binary(const unsigned char *nonce, size_t nonce_len);
+%pybuffer_nullable_binary(const unsigned char *entropy, size_t entropy_len);
+%pybuffer_nullable_binary(const unsigned char *issuance_amount, size_t issuance_amount_len);
+%pybuffer_nullable_binary(const unsigned char *inflation_keys, size_t inflation_keys_len);
+%pybuffer_nullable_binary(const unsigned char *surjectionproof, size_t surjectionproof_len);
+%pybuffer_nullable_binary(const unsigned char *rangeproof, size_t rangeproof_len);
 
 /* Output buffers */
 %pybuffer_mutable_binary(unsigned char *asset_out, size_t asset_out_len);
@@ -240,11 +253,14 @@ typedef unsigned long uint64_t;
 %rename("bip32_key_from_parent_path") bip32_key_from_parent_path_alloc;
 %rename("bip32_key_from_seed") bip32_key_from_seed_alloc;
 %rename("bip32_key_init") bip32_key_init_alloc;
+%rename("bip32_key_from_base58") bip32_key_from_base58_alloc;
 %rename("bip32_key_unserialize") bip32_key_unserialize_alloc;
 %rename("tx_witness_stack_init") wally_tx_witness_stack_init_alloc;
 %rename("tx_input_init") wally_tx_input_init_alloc;
 %rename("tx_output_init") wally_tx_output_init_alloc;
 %rename("tx_init") wally_tx_init_alloc;
+%rename("tx_elements_input_init") wally_tx_elements_input_init_alloc;
+%rename("tx_elements_output_init") wally_tx_elements_output_init_alloc;
 %rename("%(regex:/^wally_(.+)/\\1/)s", %$isfunction) "";
 
 %include "../include/wally_core.h"
