@@ -1,0 +1,16 @@
+language: c
+sudo: required
+dist: xenial
+
+script:
+ - sudo apt install git
+ - | 
+     cd .. && git clone https://github.com/ElementsProject/libwally-core &&
+     cd libwally-core &&
+     ./tools/autogen.sh &&
+     ./configure &&
+     make -j$(grep -P '^core id\t' /proc/cpuinfo | wc -l) &&
+     sudo make install &&
+     cd ../wallyutil
+ - make wallyutil test
+ - ./test

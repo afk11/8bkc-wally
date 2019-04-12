@@ -108,13 +108,23 @@ int bip39_mnemonic_from_bytes(const struct words *w,
     if (output)
         *output = NULL;
 
+    if (!bytes) {
+        return -1;
+    }
+    if (!bytes_len) {
+        return -2;
+    }
+    if (!output){
+        return -3;
+    }
     if (!bytes || !bytes_len || !output)
         return WALLY_EINVAL;
 
     w = w ? w : &en_words;
 
     if (w->bits != 11u || !(mask = len_to_mask(bytes_len)))
-        return WALLY_EINVAL;
+        return -4;
+//        return WALLY_EINVAL;
 
     memcpy(tmp_bytes, bytes, bytes_len);
     checksum = bip39_checksum(bytes, bytes_len, mask);
