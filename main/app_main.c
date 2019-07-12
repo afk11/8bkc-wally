@@ -52,19 +52,37 @@ int strnword(char *input, char* separator, int n, char** dest) {
     }
 
     if (word_n != n) {
-	//memset(copy, 0, strlen(input));
+	memset(copy, 0, strlen(input)+1);
         free(copy);
         return 0;
     }
 
     wordcopy = malloc(strlen(word)+1);
     strcpy(wordcopy, word);
-    //memset(copy, 0, strlen(input));
+    memset(copy, 0, strlen(input)+1);
     free(original);
     *dest = wordcopy;
     return 1;
 }
 
+int generate_mnemonic(struct words* wordlist, int wordcount, char** mnemonic) {
+    int entropy_bits = bip39_entropy_size_from_word_count(wordcount);
+    if (0 == entropy_bits) {
+	return 0;
+        // problem captain!
+    } 
+
+    size_t entlen = entropy_bits/32;
+    uint32_t entropy[entlen];
+    reset_entropy(entropy, entlen);
+
+    if (WALLY_OK != bip39_mnemonic_from_bytes(NULL, 
+            (unsigned char *)entropy, entropy_bits/8, mnemonic)) {
+        return 0;
+    }
+    reset_entropy(entropy, entlen);
+    return 1;
+}
 int get_keydown() {
     static int old_buttons = 0xffff;
     int new_buttons = kchal_get_keys();
@@ -101,9 +119,6 @@ int print_and_confirm(char *msg) {
 }
 
 void do_close_screen() {
-    uint8_t font_width = 6;
-    uint8_t font_height = 8;
-
     kcugui_cls();
     UG_PutString(0, 0, "Closing");
     kcugui_flush();
@@ -159,32 +174,62 @@ int draw_show_mnemonic_word_screen(char* mnemonic, int current_word) {
     return 1;
 }
 
-int do_generate_mnemonic(int wordcount, char **mnemonic) {
-    uint8_t font_width = 6;
-    uint8_t font_height = 8;
+void do_list_files_screen() {
+    print_and_confirm("list files");
 
+    if (ESP_OK != appfsInit(APPFS_PART_TYPE, APPFS_PART_SUBTYPE)) {
+        print_and_confirm("failed to init appfs");
+        wally_cleanup(0);
+        do_close_screen();
+    }
+
+    appfs_handle_t fh = APPFS_INVALID_FD;
+    char *filename;
+    int filesize;
+    while (APPFS_INVALID_FD != (fh = appfsNextEntry(fh))) {
+        appfsEntryInfo(fh, &filename, &filesize);
+        print_and_confirm(filename);
+    }
+    print_and_confirm("done listing files");
+}
+
+// returns whatever mnemonic size the user chooses
+int do_select_mnemonic_word_count() {
+    int current_size = 0;
+    // can't assign arrays this way with a 'dynamic' size
+    int sizes[BIP39_NUM_MNEMONIC_SIZES] = {
+        BIP39_MNEMONIC_SIZE_128, BIP39_MNEMONIC_SIZE_160, 
+        BIP39_MNEMONIC_SIZE_192, BIP39_MNEMONIC_SIZE_224,
+        BIP39_MNEMONIC_SIZE_256,
+    };
+
+    while (1) {
+        draw_show_int_screen(sizes[current_size]);
+        int btn = get_keydown();
+        if (btn & KC_BTN_POWER) {
+            kchal_exit_to_chooser();
+        }
+        if (btn & KC_BTN_LEFT) {
+            if (current_size > 0) {
+                --current_size;
+            }
+        } else if (btn & KC_BTN_RIGHT) {
+            if (current_size < BIP39_NUM_MNEMONIC_SIZES-1) {
+                ++current_size;
+            }
+        } else if (btn & KC_BTN_A) {
+	    return sizes[current_size];
+        }
+    }
+}
+
+
+int do_show_user_mnemonic(int wordcount, char *mnemonic) {
     int current_word = 0;
     int max_word = 0;
 
-    int entropy_bits = bip39_entropy_size_from_word_count(wordcount);
-    if (-1 == entropy_bits) {
-	print_and_confirm("ERR:ent_from_word_count error");
-	return 0;
-        // problem captain!
-    } 
-
-    size_t entlen = entropy_bits/32;
-    uint32_t entropy[entlen];
-    reset_entropy(entropy, entlen);
-
-    if (WALLY_OK != bip39_mnemonic_from_bytes(NULL, 
-            (unsigned char *)entropy, entropy_bits/8, mnemonic)) {
-        print_and_confirm("ERR:mnemonic_from_bytes");
-        return 0;
-    }
-
     while (1) {
-        if (!draw_show_mnemonic_word_screen(*mnemonic, current_word)) {
+        if (!draw_show_mnemonic_word_screen(mnemonic, current_word)) {
             return 0;
         }
 
@@ -221,59 +266,8 @@ int do_generate_mnemonic(int wordcount, char **mnemonic) {
 	    }
         }
     }
-    return 1;
 }
 
-// returns whatever mnemonic size the user chooses
-int do_select_mnemonic_word_count() {
-    uint8_t font_width = 6;
-    uint8_t font_height = 8;
-    int current_size = 0;
-    // can't assign arrays this way with a 'dynamic' size
-    int sizes[BIP39_NUM_MNEMONIC_SIZES] = {
-        BIP39_MNEMONIC_SIZE_128, BIP39_MNEMONIC_SIZE_160, 
-        BIP39_MNEMONIC_SIZE_192, BIP39_MNEMONIC_SIZE_224,
-        BIP39_MNEMONIC_SIZE_256,
-    };
-
-    while (1) {
-        draw_show_int_screen(sizes[current_size]);
-        int btn = get_keydown();
-        if (btn & KC_BTN_POWER) {
-            kchal_exit_to_chooser();
-        }
-        if (btn & KC_BTN_LEFT) {
-            if (current_size > 0) {
-                --current_size;
-            }
-        } else if (btn & KC_BTN_RIGHT) {
-            if (current_size < BIP39_NUM_MNEMONIC_SIZES-1) {
-                ++current_size;
-            }
-        } else if (btn & KC_BTN_A) {
-	    return sizes[current_size];
-        }
-    }
-}
-
-void do_list_files_screen() {
-    print_and_confirm("list files");
-
-    if (ESP_OK != appfsInit(APPFS_PART_TYPE, APPFS_PART_SUBTYPE)) {
-        print_and_confirm("failed to init appfs");
-        wally_cleanup(0);
-        do_close_screen();
-    }
-
-    appfs_handle_t fh = APPFS_INVALID_FD;
-    char *filename;
-    int filesize;
-	while (APPFS_INVALID_FD != (fh = appfsNextEntry(fh))) {
-        appfsEntryInfo(fh, &filename, &filesize);
-        print_and_confirm(filename);
-    }
-    print_and_confirm("done listing files");
-}
 
 void app_main() {
     kchal_init();
@@ -307,14 +301,27 @@ void app_main() {
     //   save mnemonic
     // have public data:
     //   xpub, and wallet type
+    char* lang = "en";
+    struct words* wordlist;
+    if (WALLY_OK != bip39_get_wordlist(lang, &wordlist)) {
+        print_and_confirm("ERR: loading wordlist");
+        wally_cleanup(0);
+        do_close_screen();
+    } 
     int wordcount = do_select_mnemonic_word_count();
 
     char* mnemonic;
-    if (!do_generate_mnemonic(wordcount, &mnemonic)) {
+    if (!generate_mnemonic(wordlist, wordcount, &mnemonic)) {
+        print_and_confirm("ERR: creating mnemonic");
         wally_cleanup(0);
 	do_close_screen();
     }
 
+    //char* mnemonic = "runway hungry cannon phrase jeans wage hen mesh safe swallow envelope glass";
+    if (!do_show_user_mnemonic(wordcount, mnemonic)) {
+        wally_cleanup(0);
+        do_close_screen();
+    }
     wally_cleanup(0);
     do_close_screen();
 }
